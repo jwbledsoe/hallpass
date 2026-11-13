@@ -1,0 +1,857 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hall Pass</title>
+<style>
+  :root {
+    --bg:#eef1f6; --card:#fff; --ink:#1b2232; --muted:#6a7387; --line:#d9dfe9;
+    --accent:#1f5fbf; --ok:#1e8a4c; --hall:#d97706; --hallbg:#fff4e0;
+    --sem:#6d28d9; --sembg:#f1eafe; --late:#c0262d; --latebg:#fde8e8;
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; background:var(--bg); color:var(--ink); }
+  button { font-family:inherit; }
+  header { background:var(--accent); color:#fff; padding:10px 18px; display:flex; align-items:center; gap:14px; flex-wrap:wrap; }
+  header h1 { margin:0; font-size:21px; white-space:nowrap; }
+  #tabs { display:flex; gap:6px; flex-wrap:wrap; flex:1; }
+  #tabs button { background:rgba(255,255,255,.15); color:#fff; border:0; padding:8px 14px; border-radius:20px; font-size:15px; cursor:pointer; }
+  #tabs button.on { background:#fff; color:var(--accent); font-weight:700; }
+  .count { display:inline-block; margin-left:6px; background:var(--hall); color:#fff; border-radius:10px; padding:0 7px; font-size:12px; font-weight:700; }
+  .count.sem { background:var(--sem); }
+  #clock { font-size:18px; font-variant-numeric:tabular-nums; white-space:nowrap; }
+  .hbtn { background:rgba(255,255,255,.18); color:#fff; border:1px solid rgba(255,255,255,.5); padding:8px 14px; border-radius:8px; cursor:pointer; font-size:15px; }
+
+  main { padding:18px; max-width:1300px; margin:0 auto; }
+  .bar { display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; flex-wrap:wrap; gap:8px; }
+  .bar h2 { margin:0; font-size:20px; }
+  .legend { display:flex; gap:14px; font-size:14px; color:var(--muted); flex-wrap:wrap; }
+  .dot { display:inline-block; width:11px; height:11px; border-radius:3px; margin-right:5px; vertical-align:-1px; }
+
+  #grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(170px,1fr)); gap:12px; }
+  .tile { position:relative; background:var(--card); border:2px solid var(--line); border-radius:12px; padding:16px 12px; min-height:110px; cursor:pointer; text-align:center; display:flex; flex-direction:column; justify-content:center; gap:6px; transition:transform .08s; user-select:none; }
+  .tile:active { transform:scale(.97); }
+  .tile .nm { font-size:18px; font-weight:700; line-height:1.2; }
+  .tile .st { font-size:13px; color:var(--muted); }
+  .tile .tm { font-size:26px; font-weight:800; font-variant-numeric:tabular-nums; }
+  .tile.hall { border-color:var(--hall); background:var(--hallbg); }
+  .tile.hall .tm, .tile.hall .st { color:#9a4f00; }
+  .tile.late { border-color:var(--late); background:var(--latebg); }
+  .tile.late .tm, .tile.late .st { color:var(--late); }
+  .tile .semtag { position:absolute; top:6px; right:6px; background:var(--sem); color:#fff; font-size:11px; font-weight:700; padding:2px 7px; border-radius:8px; }
+  .empty { color:var(--muted); font-style:italic; padding:30px; text-align:center; background:var(--card); border-radius:12px; border:1px dashed var(--line); }
+
+  dialog { border:0; border-radius:14px; padding:24px; width:min(580px,94vw); box-shadow:0 20px 50px rgba(0,0,0,.25); }
+  dialog::backdrop { background:rgba(20,28,45,.55); }
+  .mtitle { font-size:24px; font-weight:800; margin:0 0 4px; text-align:center; }
+  .msub { color:var(--muted); text-align:center; margin:0 0 18px; }
+  .mq { font-weight:700; font-size:16px; margin:16px 0 8px; }
+  .choice { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+  .choice button { padding:26px 10px; font-size:21px; font-weight:700; border:0; border-radius:12px; color:#fff; cursor:pointer; }
+  .locgrid { display:grid; grid-template-columns:repeat(2,1fr); gap:10px; }
+  .locgrid button { padding:16px 8px; font-size:17px; border:2px solid var(--line); background:#fff; border-radius:10px; cursor:pointer; font-weight:600; }
+  .locgrid button:hover { border-color:var(--accent); background:#eef4fd; }
+  .seg { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; }
+  .seg button, .chips button { border:2px solid var(--line); background:#fff; border-radius:10px; cursor:pointer; font-weight:600; }
+  .seg button { padding:14px 6px; font-size:17px; }
+  .chips { display:flex; flex-wrap:wrap; gap:8px; }
+  .chips button { padding:8px 12px; font-size:14px; border-radius:18px; }
+  .seg button.sel, .chips button.sel { border-color:var(--sem); background:var(--sembg); color:var(--sem); }
+  .mfoot { display:flex; justify-content:center; gap:10px; margin-top:18px; }
+
+  .btn { padding:10px 16px; font-size:15px; border:0; border-radius:8px; cursor:pointer; color:#fff; background:var(--accent); }
+  .btn.ok { background:var(--ok); } .btn.gray { background:#5b6475; } .btn.red { background:#b42318; }
+  .btn.purple { background:var(--sem); }
+  .btn.light { background:#e6eaf1; color:var(--ink); }
+  .btn.sm { padding:6px 10px; font-size:13px; }
+  .btn.xl { padding:18px 30px; font-size:20px; font-weight:700; }
+  .btn:disabled { opacity:.45; cursor:not-allowed; }
+
+  .agrid { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:16px; }
+  .card.full { grid-column:1 / -1; }
+  .card h3 { margin:0 0 12px; font-size:17px; }
+  label { display:block; font-weight:600; font-size:13px; margin:10px 0 5px; color:#3a4357; }
+  input[type=text], input[type=number], input[type=password], input[type=date], select, textarea {
+    width:100%; padding:9px 10px; font-size:15px; border:1px solid var(--line); border-radius:8px; background:#fff; font-family:inherit;
+  }
+  .row { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+  .row > * { flex:0 0 auto; }
+  .row .grow { flex:1 1 160px; }
+  table { width:100%; border-collapse:collapse; font-size:14px; }
+  th, td { text-align:left; padding:7px 8px; border-bottom:1px solid var(--line); vertical-align:middle; }
+  th { background:#f2f5f9; font-size:13px; position:sticky; top:0; }
+  td select { padding:5px; font-size:14px; }
+  tr.done td { color:var(--muted); }
+  .scroll { max-height:380px; overflow:auto; border:1px solid var(--line); border-radius:8px; }
+  .muted { color:var(--muted); font-size:13px; }
+  .pill { display:inline-block; padding:2px 8px; border-radius:10px; font-size:12px; font-weight:700; color:#fff; background:var(--sem); white-space:nowrap; }
+  .pill.h { background:var(--hall); } .pill.g { background:var(--ok); }
+  #toast { position:fixed; bottom:20px; left:50%; transform:translateX(-50%); background:#1b2232; color:#fff; padding:12px 20px; border-radius:10px; font-size:16px; opacity:0; transition:opacity .25s; pointer-events:none; z-index:99; text-align:center; }
+  #toast.show { opacity:1; }
+  .hidden { display:none !important; }
+  #lockBadge { background:#fff; color:var(--accent); font-weight:800; font-size:13px; padding:4px 10px; border-radius:12px; }
+  #lockOverlay.ask { background:#1b2232; }
+  #lockOverlay { position:fixed; inset:0; background:#9f1239; color:#fff; z-index:200; display:flex; align-items:center; justify-content:center; text-align:center; padding:20px; }
+  #lockOverlay .box { max-width:520px; }
+  #lockOverlay h2 { font-size:34px; margin:0 0 10px; }
+  #lockOverlay p { font-size:18px; margin:6px 0; }
+  #lockOverlay input { font-size:24px; text-align:center; margin:18px 0 12px; max-width:260px; }
+  #lockOverlay .btn { font-size:17px; padding:12px 18px; }
+  #lockOverlay .btn.white { background:#fff; color:#9f1239; font-weight:700; }
+  @media (max-width:820px){ .agrid { grid-template-columns:1fr; } }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Hall Pass</h1>
+  <div id="tabs"></div>
+  <div id="clock"></div>
+  <span id="lockBadge" class="hidden">Locked</span>
+  <button class="hbtn" id="adminBtn">Teacher</button>
+</header>
+
+<!-- CLASS VIEW -->
+<main id="classView">
+  <div class="bar">
+    <h2 id="classTitle"></h2>
+    <div class="legend">
+      <span><span class="dot" style="background:var(--hall)"></span>Hallway</span>
+      <span><span class="dot" style="background:var(--late)"></span>Over time limit</span>
+      <span><span class="dot" style="background:var(--sem)"></span>Seminar requested</span>
+    </div>
+  </div>
+  <div id="grid"></div>
+</main>
+
+<!-- ADMIN VIEW -->
+<main id="adminView" class="hidden">
+  <div class="bar">
+    <h2>Teacher Panel</h2>
+    <button class="btn" id="backBtn">Back to Class View</button>
+  </div>
+
+  <div class="agrid">
+    <section class="card full">
+      <div class="row" style="justify-content:space-between;margin-bottom:10px">
+        <h3 style="margin:0">Seminar Requests</h3>
+        <div class="row">
+          <select id="reqClass" style="width:190px"></select>
+          <select id="reqShow" style="width:170px">
+            <option value="open">Not yet requested</option>
+            <option value="all">All requests</option>
+          </select>
+          <button class="btn sm" id="reqExport">Export CSV</button>
+          <button class="btn light sm" id="reqClear">Clear Finished</button>
+        </div>
+      </div>
+      <div class="scroll" id="reqTable"></div>
+      <p class="muted">Click <b>Mark Requested</b> once you've put the student in for seminar. Their purple tag disappears from the class view.</p>
+    </section>
+
+    <section class="card">
+      <h3>Classes</h3>
+      <div class="row">
+        <input type="text" id="newClass" class="grow" placeholder="e.g. Period 2 Algebra 1">
+        <button class="btn" id="addClassBtn">Add Class</button>
+      </div>
+      <div id="classList" style="margin-top:12px"></div>
+    </section>
+
+    <section class="card">
+      <h3>Add Students</h3>
+      <label for="addTo">Class</label>
+      <select id="addTo"></select>
+      <label for="newStudents">Student names (one per line, or paste a column from a spreadsheet). Only the first name and last initial are saved, so "Jordan Lee" becomes "Jordan L."</label>
+      <textarea id="newStudents" rows="6" placeholder="Jordan Lee&#10;Maria Santos&#10;Kai Thompson"></textarea>
+      <div class="row" style="margin-top:10px">
+        <button class="btn" id="addStudentsBtn">Add to Class</button>
+      </div>
+    </section>
+
+    <section class="card full">
+      <div class="row" style="justify-content:space-between;margin-bottom:10px">
+        <h3 style="margin:0">Students</h3>
+        <div class="row">
+          <span class="muted">Show</span>
+          <select id="stuFilter" style="width:220px"></select>
+        </div>
+      </div>
+      <div class="scroll" id="stuTable"></div>
+      <p class="muted">Change a student's class with the dropdown. Removing a student keeps their past passes and requests.</p>
+    </section>
+
+    <section class="card full">
+      <div class="row" style="justify-content:space-between;margin-bottom:10px">
+        <h3 style="margin:0">Hallway Pass Log</h3>
+        <div class="row">
+          <select id="logClass" style="width:190px"></select>
+          <input type="date" id="logDate" style="width:160px">
+          <button class="btn light sm" id="logAll">All dates</button>
+          <button class="btn sm" id="exportBtn">Export CSV</button>
+        </div>
+      </div>
+      <div class="scroll" id="logTable"></div>
+      <p class="muted" id="logSummary"></p>
+      <p class="muted">The exact location shows while a student is out. When they check back in, Bathroom and Water are saved as is and every other place is saved as "Other."</p>
+      <h3 style="margin:16px 0 8px">Trips by Student <span class="muted" style="font-weight:400">(same filters as above)</span></h3>
+      <div class="scroll" id="logStudents"></div>
+    </section>
+
+    <section class="card">
+      <h3>Options</h3>
+      <label for="hallLocs">Hallway locations (one per line)</label>
+      <textarea id="hallLocs" rows="7"></textarea>
+      <label for="limit">Flag a hallway pass after this many minutes</label>
+      <input type="number" id="limit" min="1">
+      <label for="semOpts">Seminar quick picks for "What do you need to work on?" (one per line). Students can also type their own.</label>
+      <textarea id="semOpts" rows="5"></textarea>
+      <div class="row" style="margin-top:12px"><button class="btn ok" id="saveOpts">Save Options</button></div>
+    </section>
+
+    <section class="card">
+      <h3>Security and Backup</h3>
+      <label for="pin">Teacher PIN (needed to open this panel; leave blank for none)</label>
+      <div class="row">
+        <input type="password" id="pin" class="grow">
+        <button class="btn ok" id="savePin">Save PIN</button>
+      </div>
+      <label>Backup everything (classes, students, passes, seminar requests)</label>
+      <div class="row">
+        <button class="btn" id="backupBtn">Download Backup</button>
+        <button class="btn light" id="restoreBtn">Restore Backup</button>
+        <input type="file" id="restoreFile" accept=".json" class="hidden">
+      </div>
+      <p class="muted">A backup file lets you move everything to another device or recover if the browser's data gets cleared.</p>
+      <label>Danger zone</label>
+      <div class="row">
+        <button class="btn red" id="clearLog">Clear Hallway Log</button>
+        <button class="btn red" id="checkAllIn">Check Everyone In</button>
+      </div>
+    </section>
+
+    <section class="card full">
+      <h3>Locked Mode</h3>
+      <p class="muted" style="margin-top:0">Locked mode runs the class view full screen. Shortcuts for leaving bring up a PIN box: the right PIN turns locked mode off, and a wrong PIN goes right back to full screen. Every attempt is recorded below. It slows students down but can't fully stop them, so keep the device where you can see it.</p>
+      <div class="row">
+        <button class="btn" id="lockStart">Start Locked Mode</button>
+        <button class="btn light" id="lockEnd">Turn Off Locked Mode</button>
+        <span class="muted" id="lockStatus"></span>
+      </div>
+      <h3 style="margin:16px 0 8px">Times locked mode was exited</h3>
+      <div id="lockEvents"></div>
+    </section>
+  </div>
+</main>
+
+<div id="lockOverlay" class="hidden"><div class="box">
+  <h2 id="lockTitle">Teacher PIN</h2>
+  <p id="lockWhen"></p>
+  <p>Enter the teacher PIN to leave full screen.</p>
+  <input type="password" id="lockPin" placeholder="Teacher PIN" inputmode="numeric">
+  <div class="row" style="justify-content:center">
+    <button class="btn white" id="lockOff">Unlock</button>
+    <button class="btn light" id="lockResume">Back to Hall Pass</button>
+  </div>
+</div></div>
+
+<dialog id="modal"><div id="mbody"></div></dialog>
+<div id="toast"></div>
+
+<script>
+/* ---------- storage ---------- */
+const KEY = "hallpass_v2";
+const DEFAULTS = {
+  classes: [], students: [], log: [], requests: [],
+  hallway: ["Bathroom","Water","Front Office","Counselor","Library","Locker"],
+  semPicks: ["Test or quiz retake","Missing work","Homework help","Test review","Make up a test"],
+  limit: 10, pin: "", current: null,
+  locked: false, lockAlert: null, lockEvents: []
+};
+function load() {
+  let d;
+  try { const r = localStorage.getItem(KEY); if (r) d = Object.assign(structuredClone(DEFAULTS), JSON.parse(r)); } catch(e) {}
+  d = d || structuredClone(DEFAULTS);
+  // earlier version stored seminars as check-outs: close any that are still open
+  d.log.forEach(r => { if (r.type === "Seminar" && !r.in) r.in = r.out; });
+  delete d.seminar;
+  if (!d.v || d.v < 3) { d.hallway = d.hallway.filter(x => x.toLowerCase() !== "nurse"); d.v = 3; }
+  if (d.v < 4) {
+    // privacy: replace any stored full names with first name + last initial
+    d.classes.forEach(c => {
+      const list = d.students.filter(s => s.cid === c.id);
+      const short = shortenGroup(list.map(s => s.name));
+      list.forEach((s, i) => s.name = short[i]);
+    });
+    d.students.filter(s => !d.classes.some(c => c.id === s.cid)).forEach(s => s.name = shortName(s.name));
+    const byId = Object.fromEntries(d.students.map(s => [s.id, s.name]));
+    d.log.concat(d.requests).forEach(r => r.name = byId[r.sid] || shortName(r.name));
+    d.v = 4;
+  }
+  if (d.v < 5) {
+    // privacy: finished passes keep only Bathroom / Water; everything else becomes "Other"
+    d.log.forEach(r => { if (r.in && r.type !== "Seminar") r.loc = logLoc(r.loc); });
+    d.v = 5;
+  }
+  return d;
+}
+
+/* ---------- locations: exact place is kept only while the student is out ---------- */
+function logLoc(loc){ return ["bathroom","restroom","water"].includes(String(loc).trim().toLowerCase()) ? loc : "Other"; }
+function checkIn(r, t){ r.in = t || Date.now(); if (r.type !== "Seminar") r.loc = logLoc(r.loc); }
+
+/* ---------- names: only "First L." is ever stored ---------- */
+const cap = s => s ? s[0].toUpperCase() + s.slice(1) : s;
+function shortName(full, k = 1){
+  const p = String(full).trim().split(/\s+/).filter(Boolean);
+  if (p.length < 2) return cap(p[0] || "");
+  const first = cap(p[0]), last = p[p.length-1];
+  if (last.endsWith(".")) return `${first} ${cap(last)}`;          // already short, keep as typed
+  const part = last.replace(/[^A-Za-zÀ-ɏ'-]/g, "") || last;
+  return `${first} ${cap(part.slice(0, Math.min(k, part.length)))}.`;
+}
+// shorten a group of names, using extra letters of the last name only when two would otherwise match
+function shortenGroup(names){
+  return names.map((n, i) => {
+    let k = 1, out = shortName(n, k);
+    const p = String(n).trim().split(/\s+/); const lastLen = p.length > 1 ? p[p.length-1].length : 1;
+    while (k < lastLen && names.some((m, j) => j !== i && m.trim().toLowerCase() !== n.trim().toLowerCase() && shortName(m, k).toLowerCase() === out.toLowerCase())) { k++; out = shortName(n, k); }
+    return out;
+  });
+}
+function save() {
+  try { localStorage.setItem(KEY, JSON.stringify(S)); }
+  catch(e) { toast("Could not save. Browser storage may be blocked."); }
+}
+let S = load();
+
+/* ---------- helpers ---------- */
+const $ = id => document.getElementById(id);
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2,7);
+const pad = n => String(n).padStart(2,"0");
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const dateStr = (d = new Date()) => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+function timeStr(ts){ if(!ts) return ""; const d=new Date(ts); let h=d.getHours(); const ap=h>=12?"PM":"AM"; h=h%12||12; return `${h}:${pad(d.getMinutes())} ${ap}`; }
+function dur(ms){ const s=Math.max(0,Math.floor(ms/1000)); const h=Math.floor(s/3600), m=Math.floor(s%3600/60), x=s%60; return h ? `${h}:${pad(m)}:${pad(x)}` : `${m}:${pad(x)}`; }
+const mins = (a,b) => Math.round(((b||Date.now())-a)/60000);
+const byName = (a,b) => a.name.localeCompare(b.name);
+const className = id => (S.classes.find(c=>c.id===id)||{}).name || "Unassigned";
+const activePass = sid => S.log.find(r => r.sid===sid && !r.in && r.type!=="Seminar");
+const openReq = sid => S.requests.find(r => r.sid===sid && !r.done);
+const hallLog = () => S.log.filter(r => r.type !== "Seminar");
+/* privacy: students only ever see first names (plus last initial if needed) and a generic label for most locations */
+const publicLoc = () => "Hall Pass"; // exact location is saved for the Teacher panel only
+const displayName = s => s.name; // names are already stored as "First L."
+const sessShort =s => s === "Both" ? "S1 + S2" : s.replace("Session ","S");
+function toast(t){ const el=$("toast"); el.textContent=t; el.classList.add("show"); clearTimeout(toast.t); toast.t=setTimeout(()=>el.classList.remove("show"),2800); }
+
+/* ---------- modal ---------- */
+const modal = $("modal");
+function openModal(html){ $("mbody").innerHTML = html; if(!modal.open) modal.showModal(); }
+function closeModal(){ modal.close(); }
+modal.addEventListener("click", e => { if (e.target === modal) closeModal(); });
+
+/* ---------- class view ---------- */
+function renderTabs(){
+  if (S.current && !S.classes.some(c=>c.id===S.current)) S.current = null;
+  if (!S.current && S.classes.length) S.current = S.classes[0].id;
+  $("tabs").innerHTML = S.classes.map(c => {
+    const out = S.students.filter(s=>s.cid===c.id && activePass(s.id)).length;
+    return `<button data-c="${c.id}" class="${c.id===S.current?"on":""}">${esc(c.name)}${out?`<span class="count">${out}</span>`:""}</button>`;
+  }).join("");
+  const pending = S.requests.filter(r=>!r.done).length;
+  $("adminBtn").innerHTML = `Teacher${pending?`<span class="count sem">${pending}</span>`:""}`;
+}
+function renderGrid(){
+  const cls = S.classes.find(c=>c.id===S.current);
+  $("classTitle").textContent = cls ? cls.name : "";
+  if (!S.classes.length) { $("grid").innerHTML = `<div class="empty" style="grid-column:1/-1">No classes yet. Click <b>Teacher</b> to add classes and students.</div>`; return; }
+  const list = S.students.filter(s=>s.cid===S.current).sort(byName);
+  if (!list.length) { $("grid").innerHTML = `<div class="empty" style="grid-column:1/-1">No students in this class yet. Click <b>Teacher</b> to add them.</div>`; return; }
+  $("grid").innerHTML = list.map(s => {
+    const p = activePass(s.id), q = openReq(s.id);
+    const tag = q ? `<span class="semtag">Seminar ${sessShort(q.session)}</span>` : "";
+    if (!p) return `<div class="tile" data-s="${s.id}">${tag}<div class="nm">${esc(displayName(s))}</div><div class="st">In class</div></div>`;
+    const late = mins(p.out) >= S.limit;
+    return `<div class="tile ${late?"late":"hall"}" data-s="${s.id}">${tag}<div class="nm">${esc(displayName(s))}</div>
+      <div class="tm" data-t="${p.out}">${dur(Date.now()-p.out)}</div>
+      <div class="st">${esc(publicLoc(p.loc))}</div></div>`;
+  }).join("");
+}
+function renderClassView(){ renderTabs(); renderGrid(); }
+
+$("tabs").addEventListener("click", e => {
+  const b = e.target.closest("button"); if(!b) return;
+  S.current = b.dataset.c; save(); renderClassView();
+});
+$("grid").addEventListener("click", e => {
+  const t = e.target.closest(".tile"); if(!t) return;
+  tileClicked(t.dataset.s);
+});
+
+function tileClicked(sid){
+  const s = S.students.find(x=>x.id===sid); if(!s) return;
+  const p = activePass(sid);
+  if (p) {
+    openModal(`<p class="mtitle">${esc(displayName(s))}</p>
+      <p class="msub">${esc(publicLoc(p.loc))} · out since ${timeStr(p.out)} (${dur(Date.now()-p.out)})</p>
+      <div class="mfoot"><button class="btn ok xl" id="mIn">Check Back In</button></div>
+      <div class="mfoot"><button class="btn light" id="mCancel">Cancel</button></div>`);
+    $("mIn").onclick = () => { checkIn(p); save(); closeModal(); toast(`Welcome back, ${displayName(s)}! (${dur(p.in-p.out)})`); renderClassView(); };
+    $("mCancel").onclick = closeModal;
+    return;
+  }
+  openModal(`<p class="mtitle">${esc(displayName(s))}</p><p class="msub">What do you need?</p>
+    <div class="choice">
+      <button id="mHall" style="background:var(--hall)">Hallway Pass</button>
+      <button id="mSem" style="background:var(--sem)">Seminar</button>
+    </div>
+    <div class="mfoot"><button class="btn light" id="mCancel">Cancel</button></div>`);
+  $("mCancel").onclick = closeModal;
+  $("mHall").onclick = () => pickLocation(s);
+  $("mSem").onclick = () => seminarForm(s);
+}
+
+function pickLocation(s){
+  openModal(`<p class="mtitle">${esc(displayName(s))}</p><p class="msub">Where are you going?</p>
+    <div class="locgrid">${S.hallway.map(o=>`<button data-o="${esc(o)}">${esc(o)}</button>`).join("")}<button data-o="__other">Other</button></div>
+    <div id="otherBox" class="hidden" style="margin-top:12px">
+      <div class="row"><input type="text" id="otherTxt" class="grow" placeholder="Type where you're going"><button class="btn" id="otherGo">Go</button></div>
+    </div>
+    <div class="mfoot"><button class="btn light" id="mBack">Back</button><button class="btn light" id="mCancel">Cancel</button></div>`);
+  $("mCancel").onclick = closeModal;
+  $("mBack").onclick = () => tileClicked(s.id);
+  document.querySelectorAll(".locgrid button").forEach(b => b.onclick = () => {
+    if (b.dataset.o === "__other") { $("otherBox").classList.remove("hidden"); $("otherTxt").focus(); return; }
+    checkout(s, b.dataset.o);
+  });
+  const goOther = () => { const v=$("otherTxt").value.trim(); if(!v) return $("otherTxt").focus(); checkout(s, v); };
+  $("otherGo").onclick = goOther;
+  $("otherTxt").addEventListener("keydown", e => { if(e.key==="Enter") goOther(); });
+}
+
+function checkout(s, loc){
+  if (activePass(s.id)) { closeModal(); return; }
+  const now = Date.now();
+  S.log.push({ id:uid(), sid:s.id, name:s.name, cid:s.cid, cname:className(s.cid), type:"Hallway", loc, out:now, in:null, date:dateStr() });
+  save(); closeModal();
+  toast(`${displayName(s)} checked out at ${timeStr(now)}`);
+  renderClassView();
+}
+
+function seminarForm(s){
+  const existing = openReq(s.id);
+  let session = existing ? existing.session : "";
+  const picked = new Set(existing ? existing.picks || [] : []);
+  openModal(`<p class="mtitle">${esc(displayName(s))}</p>
+    <p class="msub">${existing ? "You already have a request in. You can update it here." : "Seminar request"}</p>
+    <div class="mq">Which session?</div>
+    <div class="seg" id="segSess">${["Session 1","Session 2","Both"].map(x=>`<button data-v="${x}" class="${x===session?"sel":""}">${x==="Both"?"Both Sessions":x}</button>`).join("")}</div>
+    <div class="mq">What do you need to work on?</div>
+    ${S.semPicks.length ? `<div class="chips" id="chips">${S.semPicks.map(x=>`<button data-v="${esc(x)}" class="${picked.has(x)?"sel":""}">${esc(x)}</button>`).join("")}</div>` : ""}
+    <textarea id="semNote" rows="3" style="margin-top:10px" placeholder="Details, like which assignment or test">${esc(existing ? existing.note || "" : "")}</textarea>
+    <div class="mfoot">
+      ${existing ? `<button class="btn red" id="mWithdraw">Cancel My Request</button>` : `<button class="btn light" id="mBack">Back</button>`}
+      <button class="btn light" id="mCancel">Close</button>
+      <button class="btn purple" id="mSubmit" disabled>${existing ? "Update Request" : "Send Request"}</button>
+    </div>`);
+  const ready = () => { $("mSubmit").disabled = !(session && (picked.size || $("semNote").value.trim())); };
+  $("segSess").onclick = e => {
+    const b = e.target.closest("button"); if(!b) return;
+    session = b.dataset.v; [...$("segSess").children].forEach(x=>x.classList.toggle("sel", x===b)); ready();
+  };
+  if ($("chips")) $("chips").onclick = e => {
+    const b = e.target.closest("button"); if(!b) return;
+    const v = b.dataset.v; picked.has(v) ? picked.delete(v) : picked.add(v); b.classList.toggle("sel"); ready();
+  };
+  $("semNote").addEventListener("input", ready);
+  $("mCancel").onclick = closeModal;
+  if ($("mBack")) $("mBack").onclick = () => tileClicked(s.id);
+  if ($("mWithdraw")) $("mWithdraw").onclick = () => {
+    S.requests = S.requests.filter(r=>r!==existing); save(); closeModal(); toast("Seminar request canceled"); renderClassView();
+  };
+  $("mSubmit").onclick = () => {
+    const note = $("semNote").value.trim();
+    const picks = S.semPicks.filter(x=>picked.has(x)).concat([...picked].filter(x=>!S.semPicks.includes(x)));
+    if (existing) Object.assign(existing, { session, picks, note, ts:Date.now(), date:dateStr() });
+    else S.requests.push({ id:uid(), sid:s.id, name:s.name, cid:s.cid, cname:className(s.cid), session, picks, note, ts:Date.now(), date:dateStr(), done:false, doneTs:null });
+    save(); closeModal();
+    toast(`Got it, ${displayName(s)}. Seminar request sent for ${session === "Both" ? "both sessions" : session}.`);
+    renderClassView();
+  };
+  ready();
+}
+
+/* ---------- admin ---------- */
+$("adminBtn").onclick = () => {
+  if (!S.pin) return showAdmin();
+  openModal(`<p class="mtitle">Teacher PIN</p>
+    <input type="password" id="pinTry" style="font-size:22px;text-align:center;margin:10px 0">
+    <div class="mfoot"><button class="btn light" id="mCancel">Cancel</button><button class="btn" id="pinGo">Open</button></div>`);
+  $("pinTry").focus();
+  const go = () => { if ($("pinTry").value === S.pin) { closeModal(); showAdmin(); } else { $("pinTry").value=""; toast("Wrong PIN"); } };
+  $("pinGo").onclick = go;
+  $("pinTry").addEventListener("keydown", e => { if(e.key==="Enter") go(); });
+  $("mCancel").onclick = closeModal;
+};
+$("backBtn").onclick = () => { adminOpen = false; if (S.locked) enterFS(); $("adminView").classList.add("hidden"); $("classView").classList.remove("hidden"); $("tabs").classList.remove("hidden"); renderClassView(); };
+
+function showAdmin(){
+  adminOpen = true;
+  $("classView").classList.add("hidden"); $("tabs").classList.add("hidden"); $("adminView").classList.remove("hidden");
+  $("hallLocs").value = S.hallway.join("\n");
+  $("semOpts").value = S.semPicks.join("\n");
+  $("limit").value = S.limit;
+  $("pin").value = S.pin;
+  if (!$("logDate").value && $("logDate").dataset.all !== "1") $("logDate").value = dateStr();
+  renderAdmin();
+}
+function classOptions(sel, withAll){
+  return (withAll ? `<option value="">All classes</option>` : "") +
+    S.classes.map(c=>`<option value="${c.id}" ${c.id===sel?"selected":""}>${esc(c.name)}</option>`).join("");
+}
+function renderAdmin(){
+  $("classList").innerHTML = S.classes.length ? `<table><tbody>${S.classes.map(c => {
+    const n = S.students.filter(s=>s.cid===c.id).length;
+    return `<tr><td><b>${esc(c.name)}</b> <span class="muted">${n} student${n===1?"":"s"}</span></td>
+      <td style="text-align:right;white-space:nowrap"><button class="btn light sm" data-ren="${c.id}">Rename</button>
+      <button class="btn red sm" data-del="${c.id}">Delete</button></td></tr>`; }).join("")}</tbody></table>`
+    : `<p class="muted">No classes yet.</p>`;
+  const keepAdd = $("addTo").value;
+  $("addTo").innerHTML = S.classes.length ? classOptions(keepAdd || S.current) : `<option value="">Add a class first</option>`;
+  const keepF = $("stuFilter").value; $("stuFilter").innerHTML = classOptions(keepF, true);
+  const keepL = $("logClass").value; $("logClass").innerHTML = classOptions(keepL, true);
+  const keepR = $("reqClass").value; $("reqClass").innerHTML = classOptions(keepR, true);
+  renderRequests(); renderStudents(); renderLog(); renderTabs(); updateLockUI();
+}
+
+/* seminar requests */
+function filteredReqs(){
+  const c=$("reqClass").value, show=$("reqShow").value;
+  return S.requests.filter(r => (!c||r.cid===c) && (show==="all" || !r.done)).sort((a,b)=> (a.done-b.done) || a.cname.localeCompare(b.cname) || a.name.localeCompare(b.name));
+}
+function workText(r){ return [...(r.picks||[]), r.note].filter(Boolean).join("; "); }
+function renderRequests(){
+  const rows = filteredReqs();
+  $("reqTable").innerHTML = rows.length ? `<table><thead><tr><th>Submitted</th><th>Class</th><th>Student</th><th>Session</th><th>Needs to work on</th><th></th></tr></thead><tbody>${rows.map(r =>
+    `<tr class="${r.done?"done":""}"><td style="white-space:nowrap">${r.date}<br><span class="muted">${timeStr(r.ts)}</span></td><td>${esc(r.cname)}</td><td><b>${esc(r.name)}</b></td>
+     <td><span class="pill">${r.session==="Both"?"Both Sessions":r.session}</span></td>
+     <td>${(r.picks||[]).map(p=>`<span class="pill" style="background:#e9e2fb;color:var(--sem);margin:1px">${esc(p)}</span>`).join(" ")}${r.note?`<div style="margin-top:3px">${esc(r.note)}</div>`:""}</td>
+     <td style="text-align:right;white-space:nowrap">${r.done
+        ? `<span class="pill g">Requested</span> <button class="btn light sm" data-undo="${r.id}">Undo</button>`
+        : `<button class="btn ok sm" data-done="${r.id}">Mark Requested</button>`}
+       <button class="btn light sm" data-rdel="${r.id}">Delete</button></td></tr>`).join("")}</tbody></table>`
+    : `<p class="muted" style="padding:10px">${$("reqShow").value==="open" ? "No new seminar requests." : "No seminar requests yet."}</p>`;
+}
+["reqClass","reqShow"].forEach(id => $(id).onchange = renderRequests);
+$("reqTable").addEventListener("click", e => {
+  const d=e.target.dataset;
+  if (d.done) { const r=S.requests.find(x=>x.id===d.done); r.done=true; r.doneTs=Date.now(); }
+  else if (d.undo) { const r=S.requests.find(x=>x.id===d.undo); r.done=false; r.doneTs=null; }
+  else if (d.rdel) { const r=S.requests.find(x=>x.id===d.rdel); if(!confirm(`Delete ${r.name}'s seminar request?`)) return; S.requests=S.requests.filter(x=>x!==r); }
+  else return;
+  save(); renderRequests(); renderTabs();
+});
+$("reqExport").onclick = () => {
+  const rows = filteredReqs();
+  const q = v => `"${String(v ?? "").replace(/"/g,'""')}"`;
+  const csv = ["Date Submitted,Time,Class,Student,Session,Needs to Work On,Status"].concat(rows.map(r =>
+    [r.date, timeStr(r.ts), r.cname, r.name, r.session==="Both"?"Both Sessions":r.session, workText(r), r.done?"Requested":"Not yet requested"].map(q).join(","))).join("\n");
+  download(new Blob([csv],{type:"text/csv"}), `seminar-requests-${dateStr()}.csv`);
+};
+$("reqClear").onclick = () => {
+  const n = S.requests.filter(r=>r.done).length; if(!n) return toast("No finished requests to clear");
+  if (!confirm(`Remove ${n} request${n===1?"":"s"} already marked Requested?`)) return;
+  S.requests = S.requests.filter(r=>!r.done); save(); renderRequests();
+};
+
+/* classes */
+$("addClassBtn").onclick = () => {
+  const n = $("newClass").value.trim(); if(!n) return;
+  if (S.classes.some(c=>c.name.toLowerCase()===n.toLowerCase())) return toast("That class already exists");
+  const c = { id:uid(), name:n }; S.classes.push(c); if(!S.current) S.current=c.id;
+  $("newClass").value=""; save(); renderAdmin(); $("addTo").value = c.id; toast(`Added ${n}`);
+};
+$("newClass").addEventListener("keydown", e => { if(e.key==="Enter") $("addClassBtn").click(); });
+$("classList").addEventListener("click", e => {
+  const ren = e.target.dataset.ren, del = e.target.dataset.del;
+  if (ren) {
+    const c = S.classes.find(x=>x.id===ren); const n = prompt("New class name:", c.name);
+    if (n && n.trim()) { c.name = n.trim(); save(); renderAdmin(); }
+  }
+  if (del) {
+    const c = S.classes.find(x=>x.id===del); const n = S.students.filter(s=>s.cid===del).length;
+    if (!confirm(`Delete ${c.name}${n?` and its ${n} student${n===1?"":"s"}`:""}? The pass log and seminar requests are kept.`)) return;
+    S.log.forEach(r => { if (r.cid===del && !r.in) checkIn(r); });
+    S.students = S.students.filter(s=>s.cid!==del); S.classes = S.classes.filter(x=>x.id!==del);
+    save(); renderAdmin();
+  }
+});
+
+/* students */
+$("addStudentsBtn").onclick = () => {
+  const cid = $("addTo").value; if (!cid) return toast("Add a class first");
+  const raw = $("newStudents").value.split(/\r?\n/).map(x=>x.split("\t")[0].replace(/\s+/g," ").trim()).filter(Boolean);
+  if (!raw.length) return;
+  const names = shortenGroup(raw);
+  let added = 0; const skipped = [];
+  names.forEach(n => {
+    if (S.students.some(s=>s.cid===cid && s.name.toLowerCase()===n.toLowerCase())) { skipped.push(n); return; }
+    S.students.push({ id:uid(), name:n, cid }); added++;
+  });
+  $("newStudents").value=""; save(); renderAdmin();
+  if (skipped.length) {
+    openModal(`<p class="mtitle">Added ${added} student${added===1?"":"s"}</p>
+      <p class="msub">These were skipped because that name is already in ${esc(className(cid))}:</p>
+      <p style="text-align:center;font-weight:700">${skipped.map(esc).join(", ")}</p>
+      <p class="muted" style="text-align:center">If one is a different student, add them with more of the last name and a period, like <b>Jordan Le.</b></p>
+      <div class="mfoot"><button class="btn" id="mCancel">OK</button></div>`);
+    $("mCancel").onclick = closeModal;
+  } else toast(`Added ${added} student${added===1?"":"s"} to ${className(cid)}`);
+};
+function renderStudents(){
+  const f = $("stuFilter").value;
+  const list = S.students.filter(s => !f || s.cid===f).sort((a,b)=> className(a.cid).localeCompare(className(b.cid)) || byName(a,b));
+  $("stuTable").innerHTML = list.length ? `<table><thead><tr><th>Name</th><th>Class</th><th>Status</th><th></th></tr></thead><tbody>${list.map(s => {
+    const p = activePass(s.id), q = openReq(s.id);
+    const status = [p ? `<span class="pill h">Out</span> ${esc(p.loc)}` : "", q ? `<span class="pill">Seminar ${sessShort(q.session)}</span>` : ""].filter(Boolean).join(" ") || `<span class="muted">In class</span>`;
+    return `<tr><td>${esc(s.name)}</td>
+      <td><select data-move="${s.id}">${classOptions(s.cid)}</select></td>
+      <td>${status}</td>
+      <td style="text-align:right;white-space:nowrap"><button class="btn light sm" data-rs="${s.id}">Rename</button>
+      <button class="btn red sm" data-rm="${s.id}">Remove</button></td></tr>`; }).join("")}</tbody></table>`
+    : `<p class="muted" style="padding:10px">No students to show.</p>`;
+}
+$("stuFilter").onchange = renderStudents;
+$("stuTable").addEventListener("change", e => {
+  const id = e.target.dataset.move; if(!id) return;
+  const s = S.students.find(x=>x.id===id); s.cid = e.target.value;
+  S.requests.forEach(r => { if (r.sid===id && !r.done) { r.cid = s.cid; r.cname = className(s.cid); } });
+  save(); renderAdmin(); toast(`${s.name} moved to ${className(s.cid)}`);
+});
+$("stuTable").addEventListener("click", e => {
+  const rs = e.target.dataset.rs, rm = e.target.dataset.rm;
+  if (rs) { const s = S.students.find(x=>x.id===rs); const n = prompt("Student name (saved as first name and last initial):", s.name); if (n && n.trim()) { s.name=shortName(n.trim()); S.requests.forEach(r=>{ if(r.sid===rs && !r.done) r.name=s.name; }); save(); renderAdmin(); } }
+  if (rm) {
+    const s = S.students.find(x=>x.id===rm); if (!confirm(`Remove ${s.name}? Their past passes and seminar requests stay.`)) return;
+    const p = activePass(rm); if (p) checkIn(p);
+    S.students = S.students.filter(x=>x.id!==rm); save(); renderAdmin();
+  }
+});
+
+/* hallway log */
+function filteredLog(){
+  const c=$("logClass").value, d=$("logDate").value;
+  return hallLog().filter(r => (!c||r.cid===c) && (!d||r.date===d)).sort((a,b)=>b.out-a.out);
+}
+function renderLog(){
+  const rows = filteredLog();
+  $("logTable").innerHTML = rows.length ? `<table><thead><tr><th>Date</th><th>Class</th><th>Student</th><th>Location</th><th>Out</th><th>In</th><th>Time Out of Class</th></tr></thead><tbody>${rows.map(r =>
+    `<tr><td>${r.date}</td><td>${esc(r.cname)}</td><td>${esc(r.name)}</td><td>${esc(r.loc)}</td>
+     <td>${timeStr(r.out)}</td><td>${r.in?timeStr(r.in):"<em>still out</em>"}</td><td>${r.in?dur(r.in-r.out):dur(Date.now()-r.out)+"…"}</td></tr>`).join("")}</tbody></table>`
+    : `<p class="muted" style="padding:10px">No hallway passes match these filters.</p>`;
+  const done = rows.filter(r=>r.in);
+  const avg = done.length ? Math.round(done.reduce((a,r)=>a+(r.in-r.out),0)/done.length/60000) : 0;
+  $("logSummary").textContent = rows.length ? `${rows.length} pass${rows.length===1?"":"es"} shown${done.length?` · average ${avg} min out of class`:""}` : "";
+  // per-student totals, most trips first
+  const per = {};
+  rows.forEach(r => {
+    const k = r.sid || r.name;
+    const t = per[k] || (per[k] = { name:r.name, cname:r.cname, bath:0, water:0, other:0, ms:0, trips:0 });
+    const l = String(r.loc).toLowerCase();
+    if (!r.in) t.other++; else if (l==="water") t.water++; else if (l==="bathroom"||l==="restroom") t.bath++; else t.other++;
+    t.trips++; t.ms += (r.in || Date.now()) - r.out;
+  });
+  const list = Object.values(per).sort((a,b)=> b.trips-a.trips || b.ms-a.ms);
+  $("logStudents").innerHTML = list.length ? `<table><thead><tr><th>Student</th><th>Class</th><th>Bathroom</th><th>Water</th><th>Other</th><th>Total Trips</th><th>Total Time Out</th></tr></thead><tbody>${list.map(t =>
+    `<tr><td><b>${esc(t.name)}</b></td><td>${esc(t.cname)}</td><td>${t.bath}</td><td>${t.water}</td><td>${t.other}</td><td><b>${t.trips}</b></td><td>${dur(t.ms)}</td></tr>`).join("")}</tbody></table>`
+    : `<p class="muted" style="padding:10px">No trips to summarize.</p>`;
+}
+$("logClass").onchange = renderLog;
+$("logDate").onchange = () => { $("logDate").dataset.all = ""; renderLog(); };
+$("logAll").onclick = () => { $("logDate").value=""; $("logDate").dataset.all="1"; renderLog(); };
+$("exportBtn").onclick = () => {
+  const rows = filteredLog().slice().reverse();
+  const q = v => `"${String(v ?? "").replace(/"/g,'""')}"`;
+  const csv = ["Date,Class,Student,Location,Time Out,Time In,Minutes Out"].concat(rows.map(r =>
+    [r.date, r.cname, r.name, r.loc, timeStr(r.out), r.in?timeStr(r.in):"Still out", r.in?mins(r.out,r.in):""].map(q).join(","))).join("\n");
+  download(new Blob([csv],{type:"text/csv"}), `hallway-log-${$("logDate").value || "all-dates"}.csv`);
+};
+function download(blob, name){ const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download=name; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),1000); }
+
+/* options, pin, backup */
+$("saveOpts").onclick = () => {
+  const lines = v => [...new Set(v.split("\n").map(x=>x.trim()).filter(Boolean))];
+  S.hallway = lines($("hallLocs").value).filter(x=>x.toLowerCase()!=="other"); if(!S.hallway.length) S.hallway = DEFAULTS.hallway.slice();
+  S.semPicks = lines($("semOpts").value);
+  S.limit = Math.max(1, parseInt($("limit").value) || 10);
+  save(); showAdmin(); toast("Options saved");
+};
+$("savePin").onclick = () => { S.pin = $("pin").value.trim(); save(); toast(S.pin ? "PIN saved" : "PIN removed"); };
+$("backupBtn").onclick = () => download(new Blob([JSON.stringify(S,null,1)],{type:"application/json"}), `hall-pass-backup-${dateStr()}.json`);
+$("restoreBtn").onclick = () => $("restoreFile").click();
+$("restoreFile").onchange = e => {
+  const f = e.target.files[0]; if(!f) return;
+  const rd = new FileReader();
+  rd.onload = () => {
+    try {
+      const d = JSON.parse(rd.result);
+      if (!Array.isArray(d.classes) || !Array.isArray(d.students) || !Array.isArray(d.log)) throw 0;
+      if (!confirm("Replace everything on this device with the backup?")) return;
+      localStorage.setItem(KEY, JSON.stringify(d)); S = load(); save(); showAdmin(); toast("Backup restored");
+    } catch(_) { toast("That file isn't a valid hall pass backup"); }
+    e.target.value = "";
+  };
+  rd.readAsText(f);
+};
+$("clearLog").onclick = () => {
+  if (!confirm("Delete all finished hallway passes from the log? Export a CSV or backup first if you need them.")) return;
+  S.log = S.log.filter(r=>!r.in); save(); renderAdmin(); toast("Hallway log cleared");
+};
+$("checkAllIn").onclick = () => {
+  const out = S.log.filter(r=>!r.in); if(!out.length) return toast("Nobody is checked out");
+  if (!confirm(`Check in all ${out.length} student${out.length===1?"":"s"} who are out?`)) return;
+  const now = Date.now(); out.forEach(r=>checkIn(r, now)); save(); renderAdmin(); toast("Everyone checked in");
+};
+
+/* ---------- clock + live timers ---------- */
+function tick(){
+  const d = new Date();
+  $("clock").textContent = d.toLocaleDateString(undefined,{weekday:"short",month:"short",day:"numeric"}) + "  " + timeStr(d);
+  document.querySelectorAll(".tm[data-t]").forEach(el => {
+    const t = +el.dataset.t; el.textContent = dur(Date.now()-t);
+    const tile = el.closest(".tile");
+    if (tile.classList.contains("hall") && mins(t) >= S.limit) { tile.classList.remove("hall"); tile.classList.add("late"); }
+  });
+}
+setInterval(tick, 1000);
+/* ---------- locked mode ---------- */
+let adminOpen = false;
+function enterFS(){
+  const el = document.documentElement;
+  if (document.fullscreenElement || !el.requestFullscreen) return Promise.resolve();
+  return el.requestFullscreen({ navigationUI:"hide" })
+    .then(() => { try { if (navigator.keyboard && navigator.keyboard.lock) navigator.keyboard.lock(); } catch(e) {} })
+    .catch(() => {});
+}
+function leaveFS(){
+  try { if (navigator.keyboard && navigator.keyboard.unlock) navigator.keyboard.unlock(); } catch(e) {}
+  if (document.fullscreenElement) document.exitFullscreen().catch(()=>{});
+}
+function logLock(how){
+  S.lockEvents.push({ ts:Date.now(), how });
+  if (S.lockEvents.length > 200) S.lockEvents = S.lockEvents.slice(-200);
+}
+// full screen actually ended (or page was left): record it and ask for the PIN
+function breach(how){
+  if (!S.locked || adminOpen) return;
+  logLock(how);
+  if (!S.lockAlert) S.lockAlert = { ts:Date.now(), how };
+  save(); showLockOverlay(true);
+}
+// a blocked shortcut was pressed: ask for the PIN while still full screen
+function askPin(){
+  if (!$("lockOverlay").classList.contains("hidden")) return;
+  logLock("Pressed a shortcut to leave");
+  save(); showLockOverlay(false);
+}
+function showLockOverlay(exited){
+  if (modal.open) closeModal();
+  const ov = $("lockOverlay");
+  ov.classList.toggle("ask", !exited);
+  const a = S.lockAlert;
+  $("lockTitle").textContent = exited ? "Full screen was exited" : "Teacher PIN";
+  $("lockWhen").textContent = exited && a ? `${a.how} at ${timeStr(a.ts)}` : "";
+  $("lockPin").value = "";
+  ov.classList.remove("hidden");
+  setTimeout(()=>$("lockPin").focus(), 50);
+}
+function resumeLock(){
+  S.lockAlert = null; save();
+  $("lockOverlay").classList.add("hidden");
+  enterFS();
+}
+function updateLockUI(){
+  $("lockBadge").classList.toggle("hidden", !S.locked);
+  if ($("lockStatus")) $("lockStatus").textContent = S.locked ? "Locked mode is ON" : "Locked mode is off";
+  if ($("lockEvents")) {
+    const ev = S.lockEvents.slice().reverse().slice(0, 30);
+    $("lockEvents").innerHTML = ev.length
+      ? `<div class="scroll" style="max-height:200px"><table><thead><tr><th>Date</th><th>Time</th><th>What happened</th></tr></thead><tbody>${ev.map(e=>`<tr><td>${dateStr(new Date(e.ts))}</td><td>${timeStr(e.ts)}</td><td>${esc(e.how)}</td></tr>`).join("")}</tbody></table></div>
+         <div class="row" style="margin-top:8px"><button class="btn light sm" id="lockClear">Clear This List</button></div>`
+      : `<p class="muted">Nothing recorded.</p>`;
+    if ($("lockClear")) $("lockClear").onclick = () => { S.lockEvents = []; save(); updateLockUI(); };
+  }
+}
+$("lockResume").onclick = resumeLock;
+$("lockOff").onclick = () => {
+  if ($("lockPin").value === S.pin) {
+    S.lockAlert = null; S.locked = false; save();
+    $("lockOverlay").classList.add("hidden"); leaveFS(); updateLockUI(); toast("Locked mode is off");
+  } else {
+    logLock("Wrong PIN entered"); toast("Wrong PIN");
+    resumeLock();   // straight back to full screen
+  }
+};
+$("lockPin").addEventListener("keydown", e => {
+  if (e.key === "Enter") { e.preventDefault(); $("lockOff").click(); }
+  else if (e.key === "Escape") { e.preventDefault(); resumeLock(); }
+});
+
+const inFrame = (() => { try { return window.self !== window.top; } catch(e) { return true; } })();
+function startLocked(){
+  S.locked = true; S.lockAlert = null; save(); updateLockUI();
+  $("backBtn").click();   // back to class view, full screen
+  setTimeout(() => {
+    if (S.locked && !document.fullscreenElement && document.fullscreenEnabled) toast("Locked mode is on, but full screen didn't start. Tap the Locked tag at the top to try again.");
+    else toast("Locked mode is on");
+  }, 600);
+}
+$("lockStart").onclick = () => {
+  if (!S.pin) { toast("Set a Teacher PIN first, then start locked mode"); $("pin").focus(); return; }
+  if (!document.fullscreenEnabled || !document.documentElement.requestFullscreen) {
+    const here = location.href;
+    openModal(`<p class="mtitle">Full screen is blocked here</p>
+      ${inFrame
+        ? `<p class="msub">This app is showing inside another web page (like a Google Sites embed), and that page doesn't allow full screen.</p>
+           <p style="text-align:center">Open the app in its own tab instead. <b>Note:</b> your saved data belongs to the address you open it from, so you'd set up classes again there (or use Download Backup here, then Restore Backup there).</p>`
+        : `<p class="msub">This device or browser has full screen turned off, probably by a district setting.</p>`}
+      <p class="muted" style="text-align:center">You can still use locked mode without full screen. Shortcuts will ask for the PIN and switching away will be recorded, but the address bar stays visible.</p>
+      <div class="mfoot"><button class="btn light" id="mCancel">Cancel</button><button class="btn" id="mAnyway">Use Without Full Screen</button></div>`);
+    $("mCancel").onclick = closeModal;
+    $("mAnyway").onclick = () => { closeModal(); startLocked(); };
+    return;
+  }
+  startLocked();
+};
+$("lockBadge").style.cursor = "pointer";
+$("lockBadge").onclick = () => { if (S.locked) enterFS(); };
+$("lockEnd").onclick = () => { S.locked = false; S.lockAlert = null; save(); leaveFS(); updateLockUI(); toast("Locked mode is off"); };
+
+document.addEventListener("fullscreenchange", () => { if (!document.fullscreenElement) breach("Left full screen"); });
+document.addEventListener("visibilitychange", () => { if (document.hidden) breach("Switched to another tab or app"); });
+window.addEventListener("beforeunload", e => { if (S.locked && !adminOpen) { breach("Tried to close or reload the page"); e.preventDefault(); e.returnValue = ""; } });
+document.addEventListener("contextmenu", e => { if (S.locked && !adminOpen) e.preventDefault(); });
+// block common shortcuts while locked (works best in full screen)
+document.addEventListener("keydown", e => {
+  if (!S.locked || adminOpen) return;
+  if (!$("lockOverlay").classList.contains("hidden")) return;   // PIN box handles its own keys
+  const k = e.key.toLowerCase();
+  let leave = false;
+  if ((e.ctrlKey || e.metaKey) && ["t","n","w","l","r","p","s","o","h","j","f","q","tab"].includes(k)) leave = true;
+  if (e.altKey && ["arrowleft","arrowright","home","d","f4","tab"].includes(k)) leave = true;
+  if (["f5","f11","browserback","browserforward","browserrefresh","browserhome"].includes(k)) leave = true;
+  if (k === "escape" && !modal.open) leave = true;      // Esc still closes a student pop-up normally
+  if (leave) { e.preventDefault(); e.stopPropagation(); askPin(); }
+}, true);
+history.pushState(null, "", location.href);
+window.addEventListener("popstate", () => { if (S.locked && !adminOpen) { history.pushState(null, "", location.href); } });
+
+save(); renderClassView(); tick(); updateLockUI();
+// if the page was reopened while locked, a teacher has to unlock it
+if (S.locked) { if (!S.lockAlert) breach("Page was closed or reloaded"); else showLockOverlay(true); }
+</script>
+</body>
+</html>
